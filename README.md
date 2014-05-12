@@ -5,6 +5,7 @@ A collection of grok patters that match applications provided by Adaptive Comput
 
 Contributions are encouraged
 Please create a merge request
+1 change per merge request is prefered
 
 
 ## Syntax Example
