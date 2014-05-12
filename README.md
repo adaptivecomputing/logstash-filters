@@ -5,23 +5,30 @@ A collection of grok patters that match applications provided by Adaptive Comput
 
 Contributions are encouraged  
 Please create a merge request  
-1 change per merge request is prefered  
-
 
 ## Syntax Example
 
-- Name  
+The following layout is prefered
+
+- ### Name  
 - Example log line  
+
 - Grok pattern  
+
 - Tested version  
-- Notes   
+- Notes
+
+Separate each example with 2 empty lines between blocks
+
 
 ```
     ### Job Submit
     04/04/2014 18:26:34;0040;foo bar
+
     %{DATE} %{TIME};%{WORD:hostname} %{WORD:command}
+
     Moab 7.2.7, 7.1.5
-    Notes: works with fqdn, doesnt work with.....
+    Notes: works with ...., doesnt work with.....
 ```
 
 #### Disclaimer: 
