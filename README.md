@@ -25,7 +25,7 @@ Please create a merge request
 
 #### Disclaimer: 
 
-These logstash filters are a collection of community provided examples,
-They are given freely with no guarantee of quality or accuracy
-Adaptive Computing does not provide support for any third party utilities
-Logstash and Grok are traidmarks of their respective creators
+These logstash filters are a collection of community provided examples,  
+They are given freely with no guarantee of quality or accuracy  
+Adaptive Computing does not provide support for any third party utilities  
+Logstash and Grok are traidmarks of their respective creators  
