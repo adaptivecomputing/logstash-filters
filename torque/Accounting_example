@@ -1,0 +1,59 @@
+input {
+### Only for test, use "file" in production with /var/spool/torque/server_priv/accounting folder
+  tcp {
+    type => "torque"
+    port => 3333
+  }
+}
+
+filter {
+### Only match ended jobs.
+  grok {
+    match => [ "message", "%{DATESTAMP:date};E;%{GREEDYDATA:job}.torque.domain.com;%{GREEDYDATA:KVTOTAL}" ]
+  }
+
+  kv {
+    source => ["KVTOTAL"]
+    remove_field => [ "ctime", "etime", "Resource_List.nodect", "Resource_List.nodes", "session", "end" ]
+  }
+  grok { match => [ "resources_used.cput", "%{INT:cpu_used_h:int}:%{INT:cpu_used_m:int}:%{INT:cpu_used_s:int}" ] }
+  grok { match => [ "resources_used.walltime", "%{INT:walltime_used_h:int}:%{INT:walltime_used_m:int}:%{INT:walltime_used_s:int}" ] }
+  if [Resource_List.walltime] { grok { match => [ "Resource_List.walltime", "%{INT:walltime_asked_h:int}:%{INT:walltime_asked_m:int}:%{INT:walltime_asked_s:int}" ] } }
+
+  grok { match => [ "resources_used.mem", "%{INT:mem_used_kb:int}" ] }
+  grok { match => [ "resources_used.vmem", "%{INT:vmem_used_kb:int}" ] }
+  if [Resource_List.mem] { grok { match => [ "Resource_List.mem", "%{INT:mem_ask:int}%{GREEDYDATA:mem_ask_unit}" ] } }
+  if [Resource_List.neednodes] and [Resource_List.neednodes] =~ "ppn" {
+    grok { match => [ "Resource_List.neednodes", "%{INT:nodes_asked:int}:ppn=%{INT:cpus_asked:int}" ] }
+  }
+
+  if "_grokparsefailure" not in [tags] {
+    if [mem_ask_unit] == "gb" { ruby { code => "event['mem_ask_kb'] = event['mem_ask']*1048576" } }
+      else if [mem_ask_unit] == "mb" { ruby { code => "event['mem_ask_kb'] = event['mem_ask']*1024" } }
+      else if [mem_ask_unit] == "b" { ruby { code => "event['mem_ask_kb'] = event['mem_ask']/1024" } }
+      else if [mem_ask_unit] == "kb" { ruby { code => "event['mem_ask_kb'] = event['mem_ask']" } }
+
+    ruby { code => "event['cpu_used_tot'] = (event['cpu_used_h']*3600)+(event['cpu_used_m']*60)+event['cpu_used_s']" }
+    ruby { code => "event['walltime_used_tot'] = (event['walltime_used_h']*3600)+(event['walltime_used_m']*60)+event['walltime_used_s']" }
+    if [Resource_List.walltime] { ruby { code => "event['walltime_asked_tot'] = (event['walltime_asked_h']*3600)+(event['walltime_asked_m']*60)+event['walltime_asked_s']" } }
+    if [walltime_used_tot] != 0 { ruby { code => "event['cpu_efficiency'] = Float(event['cpu_used_tot']) / Float(event['walltime_used_tot'])" } }
+
+    ruby { code => "event['wait_for_start'] = Integer(event['start']) - Integer(event['qtime'])" }
+  }
+
+### Cleaning...
+  mutate { remove_field => [ "cpu_used_h", "cpu_used_m", "cpu_used_s", "walltime_used_h", "walltime_used_m", "walltime_used_s", "walltime_asked_h", "walltime_asked_m", "walltime_asked_s", "mem_ask", "qtime", "start", "mem_ask_unit", "Resource_List.mem", "resources_used.cput", "resources_used.walltime", "resources_used.mem", "resources_used.vmem", "Resource_List.neednodes", "Exit_status", "Resource_List.walltime", "KVTOTAL", "host" ] }
+
+  date {
+    match => [ "date" , "MM/dd/YYYY HH:mm:ss" ]
+  }
+}
+
+### Using 1 index per month
+output {
+  elasticsearch_http {
+    host => "elasticsearchhost.domain.fr"
+    document_id => "%{job}"
+    index => "torque-%{+YYYY.MM.00}"
+  }
+}
